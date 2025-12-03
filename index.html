@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ecommerce Series - Juan Muñoz</title>
+
+<style>
+/* ============================
+   PALETA MORADO + NEGRO
+============================ */
+:root{
+  --bg:#0f0a18;
+  --panel:#1a1327;
+  --card:#1a1524;
+  --text:#ffffff;
+  --muted:#bcb2d9;
+  --accent:#a45bff;
+  --accent-dark:#7c3aed;
+  --border:#2c2340;
+
+  --ok:#3dd68c;
+  --warn:#e14f6c;
+  --info:#4f8bff;
+}
+*{box-sizing:border-box;}
+
+body{
+  font-family:system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  margin:0;
+  padding:22px;
+  text-align:center;
+}
+
+/* HEADER */
+h1{
+  color:var(--accent);
+  font-weight:700;
+  margin-bottom:10px;
+}
+
+/* PRODUCT GRID */
+#productos{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:18px;
+  margin-top:20px;
+}
+
+.producto{
+  background:var(--card);
+  border:1px solid var(--border);
+  padding:14px;
+  border-radius:14px;
+  text-align:center;
+}
+
+.producto img{
+  width:100%;
+  height:240px;
+  object-fit:cover;
+  border-radius:10px;
+}
+
+/* BUTTONS */
+.button{
+  margin-top:10px;
+  background:var(--accent-dark);
+  padding:10px;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  width:100%;
+}
+.button:hover{
+  background:var(--accent);
+}
+
+/* CARRITO */
+.carrito{
+  margin-top:30px;
+  background:var(--panel);
+  padding:20px;
+  border-radius:14px;
+  max-width:720px;
+  margin-left:auto;
+  margin-right:auto;
+  text-align:left;
+}
+
+#lista-carrito{
+  list-style:none;
+  padding:0;
+  margin-top:12px;
+}
+
+#lista-carrito li{
+  background:var(--card);
+  border:1px solid var(--border);
+  padding:10px;
+  border-radius:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.qty{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.qty button{
+  background:transparent;
+  border:1px solid var(--border);
+  color:#fff;
+  padding:4px 8px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.remove{
+  background:var(--warn);
+  color:#fff;
+  border:none;
+  padding:6px 10px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.totales{
+  margin-top:14px;
+}
+
+.totales p{
+  margin:6px 0;
+  font-size:16px;
+}
+
+.total strong{
+  font-size:20px;
+}
+
+/* Acciones */
+.acciones{
+  display:flex;
+  gap:12px;
+  margin-top:16px;
+}
+
+.vaciar{
+  background:var(--warn);
+  padding:10px 12px;
+  border:none;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.finalizar{
+  background:var(--info);
+  padding:10px 12px;
+  border:none;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* PAYPAL */
+#paypal-button-container{
+  margin-top:18px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>📺 Ecommerce Series - Juan Muñoz</h1>
+
+<!-- FILTRO -->
+<select id="categoria" style="padding:8px;border-radius:8px;background:var(--card);color:var(--muted);border:1px solid var(--border)">
+  <option value="todos">Todas</option>
+  <option value="Serie">Series</option>
+</select>
+
+<div id="productos"></div>
+
+<div class="carrito">
+  <h2>🧾 Carrito de Compras (<span id="cantidad-carrito">0</span>)</h2>
+  <ul id="lista-carrito"></ul>
+
+  <div class="totales">
+    <p>Subtotal: <strong id="subtotal-text">$0.00</strong></p>
+    <p>Descuento: <strong id="descuento-text">$0.00</strong></p>
+    <p>Impuestos: <strong id="impuestos-text">$0.00</strong></p>
+    <p class="total">Total: <strong id="total-text">$0.00</strong></p>
+  </div>
+
+  <div class="acciones">
+    <button id="btn-vaciar" class="vaciar">🧼 Vaciar</button>
+    <button id="btn-finalizar" class="finalizar">✅ Finalizar</button>
+  </div>
+
+  <div id="paypal-button-container" style="display:none;"></div>
+</div>
+
+<!-- PAYPAL SDK -->
+<script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
+
+<script>
+/* ===============================
+      CONFIG
+ =============================== */
+const MONEDA = "USD";
+const LOCALE = "es-US";
+const TAX_RATE = 0.00;
+const DESCUENTO = 0.00;
+
+const money = new Intl.NumberFormat(LOCALE,{
+  style:"currency",
+  currency:MONEDA
+});
+
+/* ===============================
+      DATASET SERIES
+ =============================== */
+const productos = [
+  { id: 1, nombre: "Stranger Things", precio: 25.00, categoria:"Serie", img:"https://elcanonazo.com/wp-content/uploads/2019/07/stranger-things-capitulos-temporada-3-titulos-1544540664-1030x465.jpg"},
+  { id: 2, nombre: "DARK", precio: 18.00, categoria:"Serie", img:"https://cdn.culturagenial.com/es/imagenes/dark-logo-cke.jpg?class=article"},
+  { id: 3, nombre: "The Rain", precio: 30.00, categoria:"Serie", img:"https://upload.wikimedia.org/wikipedia/en/1/12/The_Rain.png"},
+  { id: 4, nombre: "The Walking Dead", precio: 18.00, categoria:"Serie", img:"https://upload.wikimedia.org/wikipedia/en/b/b2/The_Walking_Dead_S9_Poster.jpg"},
+  { id: 5, nombre: "The Last Of Us", precio: 22.00, categoria:"Serie", img:"https://imagenes.hobbyconsolas.com/files/image_990_auto/uploads/imagenes/2023/04/25/690d5300728e3.jpeg"}
+];
+
+/* ===============================
+      ESTADO
+ =============================== */
+let carrito = new Map();
+
+const el = {
+  contProds: document.getElementById("productos"),
+  lista: document.getElementById("lista-carrito"),
+  subtotal: document.getElementById("subtotal-text"),
+  impuestos: document.getElementById("impuestos-text"),
+  descuento: document.getElementById("descuento-text"),
+  total: document.getElementById("total-text"),
+  cantidad: document.getElementById("cantidad-carrito"),
+  btnVaciar: document.getElementById("btn-vaciar"),
+  btnFinal: document.getElementById("btn-finalizar"),
+  select: document.getElementById("categoria"),
+  paypal: document.getElementById("paypal-button-container")
+};
+
+/* ===============================
+      RENDER PRODUCTOS
+ =============================== */
+function renderProductos(lista){
+  el.contProds.innerHTML = "";
+  lista.forEach(p=>{
+    const card=document.createElement("article");
+    card.className="producto";
+    card.innerHTML = `
+      <img src="${p.img}" alt="${p.nombre}">
+      <h3>${p.nombre}</h3>
+      <p><strong>${money.format(p.precio)}</strong></p>
+      <button class="button" data-add="${p.id}">Agregar al carrito</button>
+    `;
+    el.contProds.appendChild(card);
+  });
+}
+
+/* ===============================
+      FILTRAR
+ =============================== */
+function filtrar(){
+  const cat=el.select.value;
+  const data = cat==="todos" ? productos : productos.filter(p=>p.categoria===cat);
+  renderProductos(data);
+}
+
+/* ===============================
+      CARRITO + TOTALES
+ =============================== */
+function totales(){
+  const subtotal = [...carrito.values()].reduce((acc,i)=> acc + i.precio*i.cantidad ,0);
+  const desc = Math.min(DESCUENTO, subtotal);
+  const base = subtotal - desc;
+  const impuestos = +(base * TAX_RATE).toFixed(2);
+  const total = +(base + impuestos).toFixed(2);
+  const cantidad = [...carrito.values()].reduce((acc,i)=> acc + i.cantidad, 0);
+  return { subtotal, descuento:desc, impuestos, total, cantidad };
+}
+
+function pintarCarrito(){
+  el.lista.innerHTML="";
+  carrito.forEach(item=>{
+    const li=document.createElement("li");
+    li.innerHTML = `
+      <span>${item.nombre} — ${money.format(item.precio)}</span>
+      <div class="qty">
+        <button data-dec="${item.id}">−</button>
+        <span>${item.cantidad}</span>
+        <button data-inc="${item.id}">+</button>
+        <button class="remove" data-del="${item.id}">❌</button>
+      </div>
+    `;
+    el.lista.appendChild(li);
+  });
+
+  const t=totales();
+  el.subtotal.textContent=money.format(t.subtotal);
+  el.descuento.textContent=money.format(t.descuento);
+  el.impuestos.textContent=money.format(t.impuestos);
+  el.total.textContent=money.format(t.total);
+  el.cantidad.textContent=t.cantidad;
+
+  localStorage.setItem("carritoSeries",JSON.stringify([...carrito.entries()]));
+
+  el.paypal.style.display = t.total > 0 ? "block" : "none";
+  renderPaypal(t.total);
+}
+
+/* ===============================
+      ACCIONES
+ =============================== */
+function add(id){
+  const p=productos.find(x=>x.id===id);
+  if(!p) return;
+  const it=carrito.get(id);
+  if(it) it.cantidad++; else carrito.set(id,{...p,cantidad:1});
+  pintarCarrito();
+}
+
+function dec(id){
+  const it=carrito.get(id);
+  if(!it) return;
+  it.cantidad--;
+  if(it.cantidad<=0) carrito.delete(id);
+  pintarCarrito();
+}
+
+function delItem(id){
+  carrito.delete(id);
+  pintarCarrito();
+}
+
+/* ===============================
+      PAYPAL SANDBOX
+ =============================== */
+let paypalRenderedAmount = null;
+
+function renderPaypal(total){
+  if(!window.paypal) return;
+
+  if(total <= 0){
+    paypalRenderedAmount = null;
+    el.paypal.innerHTML = "";
+    return;
+  }
+
+  if(paypalRenderedAmount === total) return;
+
+  paypalRenderedAmount = total;
+  el.paypal.innerHTML = "";
+
+  paypal.Buttons({
+    createOrder: (data,actions)=> actions.order.create({
+      purchase_units:[{
+        amount:{ value:total.toFixed(2), currency_code:"USD" }
+      }]
+    }),
+    onApprove:(data,actions)=> actions.order.capture().then(()=>{
+      alert("¡Pago aprobado! Gracias por tu compra.");
+      carrito.clear();
+      pintarCarrito();
+    }),
+    onError:(err)=> alert("❌ Error con el pago. Intenta nuevamente.")
+  }).render("#paypal-button-container");
+}
+
+/* ===============================
+      EVENTOS
+ =============================== */
+document.addEventListener("click",e=>{
+  if(e.target.dataset.add) add(+e.target.dataset.add);
+  if(e.target.dataset.inc) add(+e.target.dataset.inc);
+  if(e.target.dataset.dec) dec(+e.target.dataset.dec);
+  if(e.target.dataset.del) delItem(+e.target.dataset.del);
+});
+
+el.select.onchange = filtrar;
+
+el.btnVaciar.onclick=()=>{
+  if(confirm("¿Vaciar carrito?")){
+    carrito.clear();
+    pintarCarrito();
+  }
+};
+
+el.btnFinal.onclick=()=>{
+  if(carrito.size===0) return alert("Carrito vacío.");
+  alert("Pedido finalizado.");
+  carrito.clear();
+  pintarCarrito();
+};
+
+/* ===============================
+      INIT
+ =============================== */
+function load(){
+  const data=localStorage.getItem("carritoSeries");
+  if(data){
+    carrito=new Map(JSON.parse(data));
+  }
+}
+
+load();
+renderProductos(productos);
+pintarCarrito();
+
+</script>
+</body>
+</html>
